@@ -1,3 +1,5 @@
+CREATE DATABASE Ventas_Tech_DB
+
 === SECCIÓN 1: DROP ===
 
 DROP TABLE IF EXISTS ventas;
