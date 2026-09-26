@@ -1,13 +1,17 @@
-CREATE DATABASE Ventas_Tech_DB
+IF DB_ID('Ventas_Tech_DB') IS NULL
+    CREATE DATABASE Ventas_Tech_DB;
+GO
 
-=== SECCIÓN 1: DROP ===
+USE Ventas_Tech_DB;
+
+-- SECCIÓN 1: DROP --
 
 DROP TABLE IF EXISTS ventas;
 DROP TABLE IF EXISTS productos;
 DROP TABLE IF EXISTS clientes;
 DROP TABLE IF EXISTS categorias;
 
-=== SECCIÓN 2: CREATE ===
+-- SECCIÓN 2: CREATE --
 
 -- Tabla categorias (dimensión)
 CREATE TABLE categorias (
@@ -48,7 +52,7 @@ CREATE TABLE ventas (
         FOREIGN KEY (id_producto) REFERENCES productos(id_producto)
 );
 
-=== SECCIÓN 3: INSERT ===
+-- SECCIÓN 3: INSERT --
 
 INSERT INTO categorias (id_categoria, nombre_categoria, descripcion) VALUES
   (1, 'Computación',    'Laptops, PCs y monitores'),
@@ -83,9 +87,16 @@ INSERT INTO categorias (id_categoria, nombre_categoria, descripcion) VALUES
   ( 9, 4, 4, 1,  120.00, '2024-03-14'),
   (10, 5, 3, 2,  450.00, '2024-03-15');
 
-  === SECCIÓN 4: VALIDACIÓN ===
-SELECT * FROM categorias;   -- esperado: 4 filas
-SELECT * FROM clientes;     -- esperado: 5 filas
-SELECT * FROM productos;    -- esperado: 6 filas
-SELECT * FROM ventas;       -- esperado: 10 filas
+INSERT INTO clientes (id_cliente, nombre, email, ciudad, fecha_registro) VALUES
+  (6, 'Jorge Díaz',   'jorge@mail.com', 'Salta',        '2024-03-20'),
+  (7, 'Sofía Martín', 'sofia@mail.com', 'Buenos Aires', '2024-04-02');
 
+INSERT INTO productos (id_producto, nombre_producto, id_categoria, precio, stock, activo) VALUES
+  (7, 'Webcam HD',     2, 65.00, 25, 1),
+  (8, 'Pendrive 64GB', 4, 18.00, 60, 1);
+
+  -- SECCIÓN 4: VALIDACIÓN --
+SELECT * FROM categorias;   -- esperado: 4 filas
+SELECT * FROM clientes;     -- esperado: 7 filas
+SELECT * FROM productos;    -- esperado: 8 filas
+SELECT * FROM ventas;       -- esperado: 10 filas
