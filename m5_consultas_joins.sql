@@ -1,108 +1,102 @@
-
-
 USE Ventas_Tech_DB;
-
-
-IF NOT EXISTS (SELECT 1 FROM clientes WHERE id_cliente = 6)
-    INSERT INTO clientes (id_cliente, nombre, email, ciudad, fecha_registro)
-    VALUES (6, 'Sofía Díaz', 'sofia@mail.com', 'La Plata', '2024-03-20');
-
-IF NOT EXISTS (SELECT 1 FROM productos WHERE id_producto = 7)
-    INSERT INTO productos (id_producto, nombre_producto, id_categoria, precio, stock, activo)
-    VALUES (7, 'Webcam HD', 2, 65.00, 25, 1);
 GO
-
--- =====================================================================
--- CONSULTA 1: Vista base del proyecto (INNER JOIN)
--- Una fila por venta con los datos de cliente, producto y categoría.
--- Columna para agrupar: nombre_categoria / region
--- Columna para filtrar: ciudad / region / fecha_venta
--- =====================================================================
-
+ 
+ 
+/* =====================================================================
+   CONSULTA 1 - Vista base del proyecto (INNER JOIN)
+   Fuente principal de datos para Power BI.
+   - Columna para agrupar: categoria
+   - Columna para filtrar: ciudad
+   Resultado esperado: 10 filas (una por venta)
+   ===================================================================== */
+ 
 SELECT
     v.id_venta,
-    v.fecha_venta,
+    v.fecha_venta                    AS fecha,
     c.id_cliente,
-    c.nombre                              AS nombre_cliente,
+    c.nombre                         AS cliente,
     c.ciudad,
-    CASE
-        WHEN c.ciudad = 'Buenos Aires' THEN 'Capital'
-        ELSE 'Interior'
-    END                                   AS region,
-    p.nombre_producto,
-    cat.nombre_categoria,
+    p.nombre_producto                AS producto,
+    cat.nombre_categoria             AS categoria,
     v.cantidad,
     v.precio_unitario,
-    v.cantidad * v.precio_unitario        AS total_venta
+    v.cantidad * v.precio_unitario   AS total_venta
 FROM ventas AS v
 INNER JOIN clientes   AS c   ON v.id_cliente   = c.id_cliente
 INNER JOIN productos  AS p   ON v.id_producto  = p.id_producto
 INNER JOIN categorias AS cat ON p.id_categoria = cat.id_categoria
-ORDER BY v.fecha_venta;
-
-
--- =====================================================================
--- CONSULTA 2: Clientes sin ventas (LEFT JOIN + IS NULL)
--- El LEFT JOIN conserva todos los clientes; los que no tienen ventas
--- quedan con las columnas de ventas en NULL.
--- =====================================================================
-
+ORDER BY v.fecha_venta, v.id_venta;
+ 
+ 
+/* =====================================================================
+   CONSULTA 2 - Clientes sin ventas (LEFT JOIN + IS NULL)
+   Para el área de CRM.
+   Resultado esperado: Jorge Díaz y Sofía Martín
+   ===================================================================== */
+ 
 SELECT
     c.nombre,
     c.email,
     c.fecha_registro
 FROM clientes AS c
 LEFT JOIN ventas AS v ON c.id_cliente = v.id_cliente
-WHERE v.id_venta IS NULL;
-
--- =====================================================================
--- CONSULTA 3: Productos sin ventas (LEFT JOIN + IS NULL)
--- LEFT JOIN a categorias también, para no perder un producto que
--- no tenga categoría asignada.
--- =====================================================================
-
+WHERE v.id_venta IS NULL
+ORDER BY c.fecha_registro;
+ 
+ 
+/* =====================================================================
+   CONSULTA 3 - Productos sin ventas (LEFT JOIN + IS NULL)
+   Para el área de producto.
+   Resultado esperado: Webcam HD y Pendrive 64GB
+   ===================================================================== */
+ 
 SELECT
-    p.nombre_producto,
-    cat.nombre_categoria,
+    p.nombre_producto     AS producto,
+    cat.nombre_categoria  AS categoria,
     p.precio
 FROM productos AS p
-LEFT JOIN ventas     AS v   ON p.id_producto  = v.id_producto
-LEFT JOIN categorias AS cat ON p.id_categoria = cat.id_categoria
-WHERE v.id_venta IS NULL;
-
-
--- =====================================================================
--- CONSULTA 4: Consolidado por canal (UNION ALL + GROUP BY)
--- Criterio: ubicación del cliente. 'Capital' = Buenos Aires,
--- 'Interior' = resto de las ciudades.
--- La columna canal NO existe en las tablas: se crea como texto fijo
--- en cada SELECT. UNION ALL (y no UNION) para no eliminar filas
--- repetidas: cada venta se cuenta exactamente una vez.
--- =====================================================================
-
+INNER JOIN categorias AS cat ON p.id_categoria = cat.id_categoria
+LEFT JOIN ventas      AS v   ON p.id_producto  = v.id_producto
+WHERE v.id_venta IS NULL
+ORDER BY cat.nombre_categoria, p.nombre_producto;
+ 
+ 
+/* =====================================================================
+   CONSULTA 4 - Consolidado por canal (UNION ALL + GROUP BY)
+   La columna "canal" NO existe en las tablas: se crea como texto fijo
+   en cada SELECT.
+   Criterio de separación: origen del cliente
+     - 'Capital'  -> clientes de Buenos Aires
+     - 'Interior' -> clientes del resto del país
+   Se usa UNION ALL (y no UNION) para que no se eliminen filas
+   repetidas: cada venta se cuenta una sola vez.
+   Resultado esperado:
+     Capital   ->  2 ventas -> 2640.00
+     Interior  ->  8 ventas -> 3804.00
+   ===================================================================== */
+ 
 SELECT
     canal,
-    COUNT(*)    AS cantidad_ventas,
-    SUM(total)  AS total_ventas
+    COUNT(*)          AS cantidad_ventas,
+    SUM(total_venta)  AS total_por_canal
 FROM (
     SELECT
-        v.fecha_venta,
-        v.cantidad * v.precio_unitario AS total,
-        'Capital' AS canal
+        v.fecha_venta                    AS fecha,
+        v.cantidad * v.precio_unitario   AS total_venta,
+        'Capital'                        AS canal
     FROM ventas AS v
     INNER JOIN clientes AS c ON v.id_cliente = c.id_cliente
     WHERE c.ciudad = 'Buenos Aires'
-
+ 
     UNION ALL
-
+ 
     SELECT
-        v.fecha_venta,
-        v.cantidad * v.precio_unitario AS total,
-        'Interior' AS canal
+        v.fecha_venta                    AS fecha,
+        v.cantidad * v.precio_unitario   AS total_venta,
+        'Interior'                       AS canal
     FROM ventas AS v
     INNER JOIN clientes AS c ON v.id_cliente = c.id_cliente
     WHERE c.ciudad <> 'Buenos Aires'
 ) AS consolidado
 GROUP BY canal
-ORDER BY total_ventas DESC;
-
+ORDER BY canal;
